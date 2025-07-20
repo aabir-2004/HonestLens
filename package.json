@@ -1,0 +1,16 @@
+{
+  "name": "honestlens",
+  "version": "1.0.0",
+  "description": "AI-powered news verification tool for India",
+  "main": "index.html",
+  "scripts": {
+    "dev": "http-server . -p 3000 -o",
+    "start": "http-server . -p 3000"
+  },
+  "keywords": ["news", "verification", "ai", "fact-check"],
+  "author": "",
+  "license": "MIT",
+  "devDependencies": {
+    "http-server": "^14.1.1"
+  }
+}
