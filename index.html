@@ -1,0 +1,231 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>HonestLens - AI-Powered News Verification</title>
+    <link rel="stylesheet" href="style.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+</head>
+<body>
+    <!-- Blue Siren Background Effects -->
+    <div class="siren-container">
+        <div class="siren-light siren-1"></div>
+        <div class="siren-light siren-2"></div>
+        <div class="siren-light siren-3"></div>
+        <div class="siren-beam beam-1"></div>
+        <div class="siren-beam beam-2"></div>
+        <div class="siren-beam beam-3"></div>
+    </div>
+
+    <!-- Left Navigation -->
+    <nav class="left-nav">
+        <div class="nav-header">
+            <div class="logo">
+                <i class="fas fa-shield-alt"></i>
+                <span>HonestLens</span>
+            </div>
+        </div>
+        
+        <div class="nav-menu">
+            <div class="nav-item active" data-section="home">
+                <i class="fas fa-home"></i>
+                <span>Home</span>
+                <div class="nav-glider"></div>
+            </div>
+            <div class="nav-item" data-section="verification">
+                <i class="fas fa-search"></i>
+                <span>News Verification</span>
+                <div class="nav-glider"></div>
+            </div>
+            <div class="nav-item" data-section="verified">
+                <i class="fas fa-check-circle"></i>
+                <span>Verified News</span>
+                <div class="nav-glider"></div>
+            </div>
+            <div class="nav-item" data-section="share">
+                <i class="fas fa-share-alt"></i>
+                <span>Share Information</span>
+                <div class="nav-glider"></div>
+            </div>
+        </div>
+
+        <div class="nav-footer">
+            <div class="nav-item">
+                <i class="fas fa-cog"></i>
+                <span>Settings</span>
+            </div>
+            <div class="nav-item">
+                <i class="fas fa-question-circle"></i>
+                <span>Help</span>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Main Content -->
+    <main class="main-content">
+        <!-- Hero Section -->
+        <section id="home" class="hero-section active">
+            <div class="hero-content">
+                <div class="hero-text">
+                    <h1 class="hero-title">
+                        <span class="title-line">Verify News with</span>
+                        <span class="title-line highlight">AI-Powered Truth</span>
+                    </h1>
+                    <p class="hero-subtitle">
+                        HonestLens uses advanced AI to verify news authenticity using trusted sources like PIB. 
+                        Get Truth Scores instead of simple true/false answers.
+                    </p>
+                    
+                    <!-- Search Bar -->
+                    <div class="search-container">
+                        <div class="search-box">
+                            <i class="fas fa-search search-icon"></i>
+                            <input type="text" placeholder="Enter news headline or URL to verify..." class="search-input">
+                            <button class="search-btn">
+                                <span>Verify</span>
+                                <i class="fas fa-arrow-right"></i>
+                            </button>
+                        </div>
+                        <div class="search-suggestions">
+                            <div class="suggestion-item">
+                                <i class="fas fa-clock"></i>
+                                <span>Recent: "Government announces new policy..."</span>
+                            </div>
+                            <div class="suggestion-item">
+                                <i class="fas fa-fire"></i>
+                                <span>Trending: "Breaking news about..."</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="hero-visual">
+                    <div class="truth-score-demo">
+                        <div class="score-card">
+                            <div class="score-header">
+                                <i class="fas fa-shield-check"></i>
+                                <span>Truth Score</span>
+                            </div>
+                            <div class="score-value">87%</div>
+                            <div class="score-label">Highly Credible</div>
+                            <div class="score-bar">
+                                <div class="score-fill" style="width: 87%"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- News Verification Section -->
+        <section id="verification" class="content-section">
+            <div class="section-header">
+                <h2>News Verification</h2>
+                <p>Verify any news article or claim with our AI-powered system</p>
+            </div>
+            
+            <div class="verification-tools">
+                <div class="tool-card">
+                    <i class="fas fa-link"></i>
+                    <h3>URL Verification</h3>
+                    <p>Paste any news URL for instant verification</p>
+                </div>
+                <div class="tool-card">
+                    <i class="fas fa-file-text"></i>
+                    <h3>Text Analysis</h3>
+                    <p>Copy and paste news content for analysis</p>
+                </div>
+                <div class="tool-card">
+                    <i class="fas fa-image"></i>
+                    <h3>Image Verification</h3>
+                    <p>Upload images to check for manipulation</p>
+                </div>
+            </div>
+        </section>
+
+        <!-- Verified News Section -->
+        <section id="verified" class="content-section">
+            <div class="section-header">
+                <h2>Verified News</h2>
+                <p>Browse through our collection of verified news articles</p>
+            </div>
+            
+            <div class="news-grid">
+                <div class="news-card">
+                    <div class="news-badge verified">
+                        <i class="fas fa-check"></i>
+                        Verified
+                    </div>
+                    <h3>Government Policy Update</h3>
+                    <p>Latest updates on government policies verified through official sources...</p>
+                    <div class="news-meta">
+                        <span class="truth-score">Truth Score: 95%</span>
+                        <span class="source">Source: PIB</span>
+                    </div>
+                </div>
+                
+                <div class="news-card">
+                    <div class="news-badge verified">
+                        <i class="fas fa-check"></i>
+                        Verified
+                    </div>
+                    <h3>Economic Development News</h3>
+                    <p>Verified information about recent economic developments...</p>
+                    <div class="news-meta">
+                        <span class="truth-score">Truth Score: 92%</span>
+                        <span class="source">Source: Official</span>
+                    </div>
+                </div>
+                
+                <div class="news-card">
+                    <div class="news-badge debunked">
+                        <i class="fas fa-times"></i>
+                        Debunked
+                    </div>
+                    <h3>Misleading Health Claim</h3>
+                    <p>This health-related claim has been debunked by medical experts...</p>
+                    <div class="news-meta">
+                        <span class="truth-score">Truth Score: 15%</span>
+                        <span class="source">Source: Fact-check</span>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Share Information Section -->
+        <section id="share" class="content-section">
+            <div class="section-header">
+                <h2>Share Information</h2>
+                <p>Help build a more informed community by sharing verified information</p>
+            </div>
+            
+            <div class="share-options">
+                <div class="share-card">
+                    <i class="fas fa-upload"></i>
+                    <h3>Submit for Verification</h3>
+                    <p>Submit suspicious news for our team to verify</p>
+                    <button class="share-btn">Submit News</button>
+                </div>
+                
+                <div class="share-card">
+                    <i class="fas fa-users"></i>
+                    <h3>Community Reports</h3>
+                    <p>Report misinformation you've encountered</p>
+                    <button class="share-btn">Report</button>
+                </div>
+                
+                <div class="share-card">
+                    <i class="fas fa-graduation-cap"></i>
+                    <h3>Educational Resources</h3>
+                    <p>Access guides on identifying fake news</p>
+                    <button class="share-btn">Learn More</button>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <script src="script.js"></script>
+</body>
+</html>
