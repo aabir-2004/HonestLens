@@ -1,5 +1,5 @@
 // Set your backend API base URL here (e.g., https://your-app.onrender.com)
-const API_BASE = "http://localhost:3000";
+const API_BASE = "http://localhost:5000";
 
 // Navigation functionality
 document.addEventListener('DOMContentLoaded', function() {

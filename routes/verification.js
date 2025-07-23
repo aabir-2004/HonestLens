@@ -7,6 +7,9 @@ const axios = require('axios');
 const cheerio = require('cheerio');
 const db = require('../config/database');
 const authMiddleware = require('../middleware/auth');
+const mlService = require('../services/mlService');
+const apiService = require('../services/apiService');
+const imageService = require('../services/imageService');
 
 const router = express.Router();
 
@@ -454,22 +457,167 @@ async function processVerification(requestId, type, content, url = null, imagePa
   }
 }
 
-// AI Verification simulation (replace with actual AI service)
+// Enhanced AI Verification using ML and API services
 async function performAIVerification(type, content, url, imagePath) {
-  // Try to use external ML microservice
+  console.log(`Starting enhanced verification for ${type}:`, { content: content?.substring(0, 100), url, imagePath });
+  
   try {
-    const axios = require('axios');
-    const payload = { type, content, url, imagePath };
-    const response = await axios.post('http://localhost:5001/verify', payload, { timeout: 10000 });
-    if (response.data && response.data.success) {
-      return response.data.result;
-    }
-  } catch (err) {
-    console.error('ML microservice unavailable, falling back to simulation:', err.message);
-  }
-  // Simulate processing time
-  await new Promise(resolve => setTimeout(resolve, 2000 + Math.random() * 3000));
+    let mlAnalysis = null;
+    let apiAnalysis = null;
+    let imageAnalysis = null;
 
+    // Perform ML analysis for text content
+    if (content && (type === 'text' || type === 'url')) {
+      console.log('Performing ML content analysis...');
+      mlAnalysis = await mlService.verifyContent(content, url);
+    }
+
+    // Perform external API verification
+    if (content || url) {
+      console.log('Performing external API verification...');
+      apiAnalysis = await apiService.verifyWithExternalAPIs(content, url);
+    }
+
+    // Perform image analysis if image is provided
+    if (imagePath && type === 'image') {
+      console.log('Performing image verification...');
+      imageAnalysis = await imageService.verifyImage(imagePath);
+    }
+
+    // Combine all analyses
+    const combinedResult = combineVerificationResults({
+      mlAnalysis,
+      apiAnalysis,
+      imageAnalysis,
+      type,
+      content,
+      url,
+      imagePath
+    });
+
+    console.log('Verification completed successfully');
+    return combinedResult;
+
+  } catch (error) {
+    console.error('Enhanced verification error:', error);
+    
+    // Fallback to basic verification
+    console.log('Falling back to basic verification...');
+    return await performBasicVerification(type, content, url, imagePath);
+  }
+}
+
+// Combine results from multiple verification services
+function combineVerificationResults({ mlAnalysis, apiAnalysis, imageAnalysis, type, content, url, imagePath }) {
+  let truthScore = 50;
+  let evidence = [];
+  let flags = [];
+  let sourcesChecked = [];
+  let reasoning = 'Enhanced AI verification performed using multiple services. ';
+  let confidenceScore = 70;
+
+  // Process ML analysis results
+  if (mlAnalysis) {
+    truthScore = mlAnalysis.finalScore;
+    evidence.push(...mlAnalysis.evidence);
+    flags.push(...mlAnalysis.flags);
+    reasoning += `ML analysis: ${mlAnalysis.reasoning} `;
+    confidenceScore += 10;
+  }
+
+  // Process API analysis results
+  if (apiAnalysis) {
+    // Weight API results with ML results
+    const apiWeight = 0.4;
+    const mlWeight = mlAnalysis ? 0.6 : 1.0;
+    
+    if (mlAnalysis) {
+      truthScore = Math.round((truthScore * mlWeight) + (apiAnalysis.aggregatedScore * apiWeight));
+    } else {
+      truthScore = apiAnalysis.aggregatedScore;
+    }
+
+    // Add API sources
+    sourcesChecked.push(...apiAnalysis.sources);
+    
+    // Add API-specific evidence
+    if (apiAnalysis.newsAPIResults && apiAnalysis.newsAPIResults.relevantArticles.length > 0) {
+      evidence.push(`Found ${apiAnalysis.newsAPIResults.relevantArticles.length} relevant news articles`);
+    }
+    
+    if (apiAnalysis.googleFactCheckResults && apiAnalysis.googleFactCheckResults.relevantClaims.length > 0) {
+      evidence.push(`Cross-referenced with ${apiAnalysis.googleFactCheckResults.relevantClaims.length} fact-check claims`);
+    }
+    
+    if (apiAnalysis.rssFactCheckResults && apiAnalysis.rssFactCheckResults.length > 0) {
+      evidence.push(`Checked against ${apiAnalysis.rssFactCheckResults.length} Indian fact-check sources`);
+    }
+
+    if (apiAnalysis.openAIAnalysis) {
+      reasoning += `OpenAI analysis: ${apiAnalysis.openAIAnalysis.reasoning || 'Advanced AI analysis performed'}. `;
+      confidenceScore += 15;
+    }
+  }
+
+  // Process image analysis results
+  if (imageAnalysis) {
+    const imageWeight = 0.3;
+    const combinedWeight = mlAnalysis || apiAnalysis ? 0.7 : 1.0;
+    
+    if (mlAnalysis || apiAnalysis) {
+      truthScore = Math.round((truthScore * combinedWeight) + (imageAnalysis.finalScore * imageWeight));
+    } else {
+      truthScore = imageAnalysis.finalScore;
+    }
+
+    evidence.push(...imageAnalysis.evidence);
+    flags.push(...imageAnalysis.flags);
+    reasoning += `Image analysis: ${imageAnalysis.flags.length === 0 ? 'No manipulation detected' : 'Potential issues found'}. `;
+    confidenceScore += 10;
+  }
+
+  // Determine credibility level
+  let credibilityLevel;
+  if (truthScore >= 85) credibilityLevel = 'highly_credible';
+  else if (truthScore >= 70) credibilityLevel = 'mostly_credible';
+  else if (truthScore >= 50) credibilityLevel = 'mixed_credibility';
+  else if (truthScore >= 30) credibilityLevel = 'low_credibility';
+  else credibilityLevel = 'not_credible';
+
+  // Ensure confidence score is reasonable
+  confidenceScore = Math.min(95, confidenceScore);
+
+  return {
+    truthScore: Math.max(0, Math.min(100, truthScore)),
+    credibilityLevel,
+    method: `Enhanced AI Analysis (${type}) - ML + API + ${imageAnalysis ? 'Image' : 'Text'}`,
+    sourcesChecked: sourcesChecked.slice(0, 10), // Limit sources
+    evidence: evidence.join('; '),
+    reasoning: reasoning.trim(),
+    confidenceScore: Math.round(confidenceScore),
+    flags: [...new Set(flags)], // Remove duplicates
+    mlAnalysis: mlAnalysis ? {
+      contentScore: mlAnalysis.contentAnalysis?.score,
+      sourceScore: mlAnalysis.sourceAnalysis?.score,
+      crossRefScore: mlAnalysis.crossReference?.score
+    } : null,
+    apiAnalysis: apiAnalysis ? {
+      newsAPIScore: apiAnalysis.newsAPIResults?.credibilityScore,
+      factCheckScore: apiAnalysis.googleFactCheckResults?.credibilityScore,
+      openAIScore: apiAnalysis.openAIAnalysis?.credibilityScore
+    } : null,
+    imageAnalysis: imageAnalysis ? {
+      manipulationScore: imageAnalysis.manipulationDetection?.manipulationScore,
+      hasText: imageAnalysis.textAnalysis?.hasText,
+      textScore: imageAnalysis.textAnalysis?.textAnalysis?.score
+    } : null
+  };
+}
+
+// Fallback basic verification function
+async function performBasicVerification(type, content, url, imagePath) {
+  console.log('Performing basic verification fallback...');
+  
   // Get fact-check sources
   const sources = await db.query(`
     SELECT name, url, reliability_score FROM fact_check_sources 
@@ -477,46 +625,51 @@ async function performAIVerification(type, content, url, imagePath) {
     ORDER BY reliability_score DESC
   `);
 
-  // Simulate verification logic
-  let truthScore = 50 + Math.random() * 50; // Base score 50-100
+  let truthScore = 50;
   let flags = [];
   let evidence = [];
-  let reasoning = '';
 
-  // Content analysis
-  const suspiciousKeywords = [
-    'breaking', 'urgent', 'shocking', 'unbelievable', 'secret', 'hidden truth',
-    'they don\'t want you to know', 'viral', 'must share', 'forward this'
-  ];
-
-  const contentLower = content.toLowerCase();
-  const suspiciousCount = suspiciousKeywords.filter(keyword => 
-    contentLower.includes(keyword)
-  ).length;
-
-  if (suspiciousCount > 2) {
-    truthScore -= 20;
-    flags.push('Contains sensational language');
-  }
-
-  // URL analysis
-  if (url) {
-    const domain = new URL(url).hostname;
-    const trustedDomains = [
-      'pib.gov.in', 'mygov.in', 'timesofindia.com', 'thehindu.com',
-      'indianexpress.com', 'ndtv.com', 'bbc.com', 'reuters.com'
+  // Basic content analysis
+  if (content) {
+    const suspiciousKeywords = [
+      'breaking', 'urgent', 'shocking', 'unbelievable', 'secret', 'hidden truth',
+      'they don\'t want you to know', 'viral', 'must share', 'forward this'
     ];
 
-    if (trustedDomains.some(trusted => domain.includes(trusted))) {
-      truthScore += 15;
-      evidence.push(`Source from trusted domain: ${domain}`);
-    } else {
-      truthScore -= 10;
-      flags.push('Source from unverified domain');
+    const contentLower = content.toLowerCase();
+    const suspiciousCount = suspiciousKeywords.filter(keyword => 
+      contentLower.includes(keyword)
+    ).length;
+
+    if (suspiciousCount > 2) {
+      truthScore -= 20;
+      flags.push('Contains sensational language');
     }
   }
 
-  // Simulate cross-referencing with fact-check sources
+  // Basic URL analysis
+  if (url) {
+    try {
+      const domain = new URL(url).hostname;
+      const trustedDomains = [
+        'pib.gov.in', 'mygov.in', 'timesofindia.com', 'thehindu.com',
+        'indianexpress.com', 'ndtv.com', 'bbc.com', 'reuters.com'
+      ];
+
+      if (trustedDomains.some(trusted => domain.includes(trusted))) {
+        truthScore += 15;
+        evidence.push(`Source from trusted domain: ${domain}`);
+      } else {
+        truthScore -= 10;
+        flags.push('Source from unverified domain');
+      }
+    } catch (error) {
+      flags.push('Invalid URL provided');
+      truthScore -= 15;
+    }
+  }
+
+  // Simulate basic fact-checking
   const checkedSources = sources.slice(0, 3).map(source => ({
     name: source.name,
     url: source.url,
@@ -538,24 +691,14 @@ async function performAIVerification(type, content, url, imagePath) {
   else if (truthScore >= 30) credibilityLevel = 'low_credibility';
   else credibilityLevel = 'not_credible';
 
-  // Generate reasoning
-  reasoning = `Content analyzed using AI verification system. `;
-  if (evidence.length > 0) {
-    reasoning += `Supporting evidence: ${evidence.join(', ')}. `;
-  }
-  if (flags.length > 0) {
-    reasoning += `Concerns identified: ${flags.join(', ')}. `;
-  }
-  reasoning += `Cross-referenced with ${checkedSources.length} fact-checking sources.`;
-
   return {
-    truthScore: Math.round(truthScore),
+    truthScore: Math.round(Math.max(0, Math.min(100, truthScore))),
     credibilityLevel,
-    method: `AI Analysis + Cross-reference (${type})`,
+    method: `Basic Analysis (${type}) - Fallback Mode`,
     sourcesChecked: checkedSources,
     evidence: evidence.join('; '),
-    reasoning,
-    confidenceScore: Math.round(70 + Math.random() * 25),
+    reasoning: `Basic verification performed. ${evidence.length > 0 ? 'Evidence: ' + evidence.join(', ') + '. ' : ''}${flags.length > 0 ? 'Concerns: ' + flags.join(', ') + '. ' : ''}Cross-referenced with ${checkedSources.length} fact-checking sources.`,
+    confidenceScore: 60,
     flags
   };
 }
