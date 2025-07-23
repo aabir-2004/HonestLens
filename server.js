@@ -5,11 +5,6 @@ const morgan = require('morgan');
 const rateLimit = require('express-rate-limit');
 require('dotenv').config();
 
-const authRoutes = require('./routes/auth');
-const newsRoutes = require('./routes/news');
-const verificationRoutes = require('./routes/verification');
-const userRoutes = require('./routes/user');
-const adminRoutes = require('./routes/admin');
 const { initializeDatabase } = require('./config/database');
 const { errorHandler } = require('./middleware/errorHandler');
 
@@ -38,12 +33,46 @@ app.use(express.urlencoded({ extended: true }));
 // Logging
 app.use(morgan('combined'));
 
-// Routes
-app.use('/api/auth', authRoutes);
-app.use('/api/news', newsRoutes);
-app.use('/api/verification', verificationRoutes);
-app.use('/api/user', userRoutes);
-app.use('/api/admin', adminRoutes);
+// Safe route loading function
+function safeRequire(path, routeName) {
+  try {
+    const route = require(path);
+    if (typeof route === 'function' || (route && typeof route.use === 'function')) {
+      console.log(`✅ ${routeName} loaded successfully`);
+      return route;
+    } else {
+      console.error(`❌ ${routeName} is not a valid middleware function:`, typeof route);
+      return null;
+    }
+  } catch (error) {
+    console.error(`❌ Failed to load ${routeName}:`, error.message);
+    return null;
+  }
+}
+
+// Load routes safely
+const authRoutes = safeRequire('./routes/auth', 'authRoutes');
+const newsRoutes = safeRequire('./routes/news', 'newsRoutes');
+const verificationRoutes = safeRequire('./routes/verification', 'verificationRoutes');
+const userRoutes = safeRequire('./routes/users', 'userRoutes');
+const adminRoutes = safeRequire('./routes/admin', 'adminRoutes');
+
+// Apply routes only if they loaded successfully
+if (authRoutes) {
+  app.use('/api/auth', authRoutes);
+}
+if (newsRoutes) {
+  app.use('/api/news', newsRoutes);
+}
+if (verificationRoutes) {
+  app.use('/api/verification', verificationRoutes);
+}
+if (userRoutes) {
+  app.use('/api/user', userRoutes);
+}
+if (adminRoutes) {
+  app.use('/api/admin', adminRoutes);
+}
 
 // Health check endpoint
 app.get('/api/health', (req, res) => {
@@ -67,6 +96,7 @@ initializeDatabase()
   .then(() => {
     app.listen(PORT, () => {
       console.log(`HonestLens server running on port ${PORT}`);
+      console.log(`Server available at http://localhost:${PORT}`);
     });
   })
   .catch(err => {
