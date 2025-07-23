@@ -456,6 +456,17 @@ async function processVerification(requestId, type, content, url = null, imagePa
 
 // AI Verification simulation (replace with actual AI service)
 async function performAIVerification(type, content, url, imagePath) {
+  // Try to use external ML microservice
+  try {
+    const axios = require('axios');
+    const payload = { type, content, url, imagePath };
+    const response = await axios.post('http://localhost:5001/verify', payload, { timeout: 10000 });
+    if (response.data && response.data.success) {
+      return response.data.result;
+    }
+  } catch (err) {
+    console.error('ML microservice unavailable, falling back to simulation:', err.message);
+  }
   // Simulate processing time
   await new Promise(resolve => setTimeout(resolve, 2000 + Math.random() * 3000));
 

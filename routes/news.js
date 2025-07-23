@@ -473,4 +473,24 @@ router.get('/trending', async (req, res) => {
   }
 });
 
+// Fetch live news from external API
+router.get('/live', async (req, res) => {
+  try {
+    const apiKey = process.env.NEWS_API_KEY;
+    if (!apiKey) {
+      return res.status(500).json({ success: false, message: 'News API key not configured' });
+    }
+    const { q = '', category = '', page = 1, pageSize = 20 } = req.query;
+    let url = `https://newsapi.org/v2/top-headlines?apiKey=${apiKey}&page=${page}&pageSize=${pageSize}`;
+    if (q) url += `&q=${encodeURIComponent(q)}`;
+    if (category) url += `&category=${encodeURIComponent(category)}`;
+    url += '&language=en';
+    const response = await axios.get(url);
+    res.json({ success: true, data: response.data });
+  } catch (error) {
+    console.error('Live news fetch error:', error);
+    res.status(500).json({ success: false, message: 'Failed to fetch live news', error: error.message });
+  }
+});
+
 module.exports = router;

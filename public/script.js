@@ -1,3 +1,6 @@
+// Set your backend API base URL here (e.g., https://your-app.onrender.com)
+const API_BASE = "http://localhost:3000";
+
 // Navigation functionality
 document.addEventListener('DOMContentLoaded', function() {
     const navItems = document.querySelectorAll('.nav-item[data-section]');
@@ -120,32 +123,235 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // Mobile navigation toggle (for responsive design)
     createMobileToggle();
+
+    // Verification tool event listeners
+    const urlInput = document.querySelector('.url-input');
+    const urlVerifyBtn = document.querySelector('.url-verify-btn');
+    const textInput = document.querySelector('.text-input');
+    const textVerifyBtn = document.querySelector('.text-verify-btn');
+    const imageInput = document.querySelector('.image-input');
+    const imageVerifyBtn = document.querySelector('.image-verify-btn');
+    const resultSection = document.getElementById('verification-result');
+    const resultContent = resultSection ? resultSection.querySelector('.result-content') : null;
+
+    if (urlVerifyBtn && urlInput) {
+        urlVerifyBtn.addEventListener('click', async function() {
+            const url = urlInput.value.trim();
+            if (!isValidUrl(url)) {
+                showNotification('Please enter a valid URL.');
+                return;
+            }
+            urlVerifyBtn.disabled = true;
+            urlVerifyBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Verifying...';
+            try {
+                const res = await fetch(`${API_BASE}/verification/verify-url`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ url })
+                });
+                const data = await res.json();
+                if (data.success && data.data) {
+                    showVerificationResult(data.data);
+                } else {
+                    showNotification(data.message || 'Verification failed.');
+                }
+            } catch (err) {
+                showNotification('Verification failed. Please try again.');
+            } finally {
+                urlVerifyBtn.disabled = false;
+                urlVerifyBtn.innerHTML = 'Verify URL';
+            }
+        });
+    }
+
+    if (textVerifyBtn && textInput) {
+        textVerifyBtn.addEventListener('click', async function() {
+            const text = textInput.value.trim();
+            if (text.length < 10) {
+                showNotification('Please enter at least 10 characters.');
+                return;
+            }
+            textVerifyBtn.disabled = true;
+            textVerifyBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Verifying...';
+            try {
+                const res = await fetch(`${API_BASE}/verification/verify-text`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ text })
+                });
+                const data = await res.json();
+                if (data.success && data.data) {
+                    showVerificationResult(data.data);
+                } else {
+                    showNotification(data.message || 'Verification failed.');
+                }
+            } catch (err) {
+                showNotification('Verification failed. Please try again.');
+            } finally {
+                textVerifyBtn.disabled = false;
+                textVerifyBtn.innerHTML = 'Verify Text';
+            }
+        });
+    }
+
+    if (imageVerifyBtn && imageInput) {
+        imageVerifyBtn.addEventListener('click', async function() {
+            if (!imageInput.files || !imageInput.files[0]) {
+                showNotification('Please select an image file.');
+                return;
+            }
+            imageVerifyBtn.disabled = true;
+            imageVerifyBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Verifying...';
+            try {
+                const formData = new FormData();
+                formData.append('image', imageInput.files[0]);
+                const res = await fetch(`${API_BASE}/verification/verify-image`, {
+                    method: 'POST',
+                    body: formData
+                });
+                const data = await res.json();
+                if (data.success && data.data) {
+                    showVerificationResult(data.data);
+                } else {
+                    showNotification(data.message || 'Verification failed.');
+                }
+            } catch (err) {
+                showNotification('Verification failed. Please try again.');
+            } finally {
+                imageVerifyBtn.disabled = false;
+                imageVerifyBtn.innerHTML = 'Verify Image';
+            }
+        });
+    }
+
+    function showVerificationResult(data) {
+        if (resultSection && resultContent) {
+            resultSection.style.display = 'block';
+            resultContent.innerHTML = `
+                <div><strong>Status:</strong> ${data.status || 'processing'}</div>
+                <div><strong>Request ID:</strong> ${data.requestId || ''}</div>
+                <div><strong>Estimated Time:</strong> ${data.estimatedTime || ''}</div>
+                <div><strong>Result:</strong> ${data.result ? JSON.stringify(data.result) : 'Pending'}</div>
+            `;
+            window.scrollTo({ top: resultSection.offsetTop, behavior: 'smooth' });
+        }
+    }
+
+    // Tab switching for Verified News
+    const trendingTab = document.querySelector('.trending-tab');
+    const liveTab = document.querySelector('.live-tab');
+    if (trendingTab && liveTab) {
+        trendingTab.addEventListener('click', function() {
+            trendingTab.classList.add('active');
+            liveTab.classList.remove('active');
+            fetchTrendingTopics();
+        });
+        liveTab.addEventListener('click', function() {
+            liveTab.classList.add('active');
+            trendingTab.classList.remove('active');
+            fetchLiveNews();
+        });
+    }
 });
 
-// Search function
-function performSearch(query) {
-    console.log('Searching for:', query);
-    
-    // Show loading state
+// Helper: Check if string is a URL
+function isValidUrl(str) {
+    try {
+        new URL(str);
+        return true;
+    } catch (_) {
+        return false;
+    }
+}
+
+// Fetch and display live news
+async function fetchLiveNews() {
+    try {
+        const res = await fetch(`${API_BASE}/news/live?pageSize=6`);
+        const data = await res.json();
+        if (data.success && data.data.articles) {
+            const liveNewsSection = document.querySelector('.news-grid');
+            if (liveNewsSection) {
+                liveNewsSection.innerHTML = data.data.articles.map(article => `
+                    <div class="news-card">
+                        <div class="news-badge live"><i class="fas fa-bolt"></i>Live</div>
+                        <h3>${article.title}</h3>
+                        <p>${article.description || article.content || ''}</p>
+                        <div class="news-meta">
+                            <span class="source">Source: ${article.source.name || 'Unknown'}</span>
+                            <span class="published">${article.publishedAt ? new Date(article.publishedAt).toLocaleString() : ''}</span>
+                        </div>
+                        <a href="${article.url}" target="_blank" class="news-link">Read More</a>
+                    </div>
+                `).join('');
+            }
+        }
+    } catch (err) {
+        showNotification('Failed to load live news.');
+    }
+}
+
+// Fetch and display trending topics in Verified News
+async function fetchTrendingTopics() {
+    try {
+        const res = await fetch(`${API_BASE}/news/trending`);
+        const data = await res.json();
+        if (data.success && data.data.trending) {
+            const trendingSection = document.querySelector('.news-grid');
+            if (trendingSection) {
+                trendingSection.innerHTML = data.data.trending.map(item => `
+                    <div class="news-card">
+                        <div class="news-badge trending"><i class="fas fa-fire"></i>Trending</div>
+                        <h3>${item.title}</h3>
+                        <p>Category: ${item.category || 'General'}</p>
+                        <div class="news-meta">
+                            <span class="source">Source: ${item.source}</span>
+                            <span class="truth-score">Avg Truth Score: ${item.avgTruthScore}%</span>
+                        </div>
+                    </div>
+                `).join('');
+            }
+        }
+    } catch (err) {
+        showNotification('Failed to load trending topics.');
+    }
+}
+
+// Enhanced search function
+async function performSearch(query) {
     const searchBtn = document.querySelector('.search-btn');
     const originalText = searchBtn.innerHTML;
     searchBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Verifying...';
     searchBtn.disabled = true;
-
-    // Simulate API call
-    setTimeout(() => {
-        // Reset button
+    try {
+        let result;
+        if (isValidUrl(query)) {
+            // URL verification
+            result = await fetch(`${API_BASE}/verification/verify-url`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ url: query })
+            });
+        } else {
+            // Text verification
+            result = await fetch(`${API_BASE}/verification/verify-text`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ text: query })
+            });
+        }
+        const data = await result.json();
+        if (data.success && data.data) {
+            showNotification(`Verification submitted! Status: ${data.data.status || 'processing'}`);
+        } else {
+            showNotification(data.message || 'Verification failed.');
+        }
+    } catch (err) {
+        showNotification('Verification failed. Please try again.');
+    } finally {
         searchBtn.innerHTML = originalText;
         searchBtn.disabled = false;
-        
-        // Show result notification
-        const truthScore = Math.floor(Math.random() * 100);
-        const credibility = getTruthLabel(truthScore);
-        showNotification(`Search completed! Truth Score: ${truthScore}% - ${credibility}`);
-        
-        // Update demo score
-        updateDemoScore(truthScore);
-    }, 2000);
+    }
 }
 
 // Get truth label based on score

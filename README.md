@@ -205,3 +205,38 @@ Error responses:
 ### License
 
 MIT License - see LICENSE file for details.
+
+# Deployment
+
+## Prerequisites
+- Node.js (v14+ recommended)
+- npm
+- [pm2](https://pm2.keymetrics.io/) (for process management)
+
+## Setup
+1. Copy `.env.example` to `.env` and fill in your API keys and secrets:
+   ```sh
+   cp .env.example .env
+   # Edit .env and set your NEWS_API_KEY
+   ```
+2. Install dependencies:
+   ```sh
+   npm install
+   ```
+3. Start the app in production mode with pm2:
+   ```sh
+   npx pm2 start server.js --name honestlens --env production
+   ```
+4. To view logs:
+   ```sh
+   npx pm2 logs honestlens
+   ```
+5. To stop or restart:
+   ```sh
+   npx pm2 stop honestlens
+   npx pm2 restart honestlens
+   ```
+
+## Notes
+- Make sure your ML microservice is also running in production.
+- For HTTPS, use a reverse proxy like Nginx or deploy on a cloud platform with SSL support.

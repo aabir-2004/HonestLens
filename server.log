@@ -1,0 +1,12 @@
+node:internal/modules/run_main:74
+  const type = getNearestParentPackageJSONType(mainPath);
+               ^
+
+Error: Invalid package config /Users/aabir2004/Desktop/WorkStation/Projects/HonestLens-2/package.json.
+    at shouldUseESMLoader (node:internal/modules/run_main:74:16)
+    at Module.executeUserEntryPoint [as runMain] (node:internal/modules/run_main:145:20)
+    at node:internal/main/run_main_module:33:47 {
+  code: 'ERR_INVALID_PACKAGE_CONFIG'
+}
+
+Node.js v24.3.0
