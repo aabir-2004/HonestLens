@@ -61,18 +61,18 @@ const adminRoutes = safeRequire('./routes/admin', 'adminRoutes');
 if (authRoutes) {
   app.use('/api/auth', authRoutes);
 }
-// if (newsRoutes) {
-//   app.use('/api/news', newsRoutes);
-// }
-// if (verificationRoutes) {
-//   app.use('/api/verification', verificationRoutes);
-// }
-// if (userRoutes) {
-//   app.use('/api/user', userRoutes);
-// }
-// if (adminRoutes) {
-//   app.use('/api/admin', adminRoutes);
-// }
+if (newsRoutes) {
+  app.use('/api/news', newsRoutes);
+}
+if (verificationRoutes) {
+  app.use('/api/verification', verificationRoutes);
+}
+if (userRoutes) {
+  app.use('/api/user', userRoutes);
+}
+if (adminRoutes) {
+  app.use('/api/admin', adminRoutes);
+}
 
 // Health check endpoint
 app.get('/api/health', (req, res) => {
