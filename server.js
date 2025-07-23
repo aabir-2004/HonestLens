@@ -8,7 +8,7 @@ require('dotenv').config();
 const authRoutes = require('./routes/auth');
 const newsRoutes = require('./routes/news');
 const verificationRoutes = require('./routes/verification');
-const userRoutes = require('./routes/users');
+const userRoutes = require('./routes/user');
 const adminRoutes = require('./routes/admin');
 const { initializeDatabase } = require('./config/database');
 const { errorHandler } = require('./middleware/errorHandler');
