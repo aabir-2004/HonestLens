@@ -8,22 +8,42 @@ if (!fs.existsSync(dataDir)) {
   fs.mkdirSync(dataDir, { recursive: true });
 }
 
-const dbPath = path.join(dataDir, 'honestlens.db');
+const dbPath = process.env.DATABASE_URL || path.join(dataDir, 'honestlens.db');
 
 class Database {
   constructor() {
-    this.db = new sqlite3.Database(dbPath, (err) => {
-      if (err) {
-        console.error('Error opening database:', err);
-      } else {
-        console.log('Connected to SQLite database');
-        this.db.run('PRAGMA foreign_keys = ON');
-      }
+    this.db = null;
+    this.connectionPool = [];
+    this.maxConnections = 10;
+    this.currentConnections = 0;
+  }
+
+  async connect() {
+    if (this.db) return this.db;
+
+    return new Promise((resolve, reject) => {
+      this.db = new sqlite3.Database(dbPath, (err) => {
+        if (err) {
+          console.error('Error opening database:', err);
+          reject(err);
+        } else {
+          console.log('✅ Connected to SQLite database');
+          // Optimize SQLite for better performance
+          this.db.run('PRAGMA foreign_keys = ON');
+          this.db.run('PRAGMA journal_mode = WAL');
+          this.db.run('PRAGMA synchronous = NORMAL');
+          this.db.run('PRAGMA cache_size = 1000');
+          this.db.run('PRAGMA temp_store = MEMORY');
+          resolve(this.db);
+        }
+      });
     });
   }
 
   // Initialize all database tables
   async initializeTables() {
+    await this.connect();
+    
     return new Promise((resolve, reject) => {
       this.db.serialize(() => {
         // Users table
@@ -34,7 +54,7 @@ class Database {
             email VARCHAR(100) UNIQUE NOT NULL,
             password_hash VARCHAR(255) NOT NULL,
             full_name VARCHAR(100),
-            role ENUM('user', 'moderator', 'admin') DEFAULT 'user',
+            role TEXT DEFAULT 'user' CHECK (role IN ('user', 'moderator', 'admin')),
             is_verified BOOLEAN DEFAULT FALSE,
             verification_token VARCHAR(255),
             reset_token VARCHAR(255),
@@ -73,12 +93,12 @@ class Database {
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             user_id INTEGER,
             article_id INTEGER,
-            request_type ENUM('url', 'text', 'image') NOT NULL,
+            request_type TEXT NOT NULL CHECK (request_type IN ('url', 'text', 'image')),
             content TEXT NOT NULL,
             url VARCHAR(1000),
             image_path VARCHAR(500),
-            status ENUM('pending', 'processing', 'completed', 'failed') DEFAULT 'pending',
-            priority ENUM('low', 'medium', 'high', 'urgent') DEFAULT 'medium',
+            status TEXT DEFAULT 'pending' CHECK (status IN ('pending', 'processing', 'completed', 'failed')),
+            priority TEXT DEFAULT 'medium' CHECK (priority IN ('low', 'medium', 'high', 'urgent')),
             created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
             updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
             FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE SET NULL,
@@ -92,7 +112,7 @@ class Database {
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             request_id INTEGER NOT NULL,
             truth_score DECIMAL(5,2) NOT NULL,
-            credibility_level ENUM('not_credible', 'low_credibility', 'mixed_credibility', 'mostly_credible', 'highly_credible') NOT NULL,
+            credibility_level TEXT NOT NULL CHECK (credibility_level IN ('not_credible', 'low_credibility', 'mixed_credibility', 'mostly_credible', 'highly_credible')),
             verification_method VARCHAR(100),
             sources_checked TEXT,
             evidence TEXT,
@@ -116,7 +136,7 @@ class Database {
             api_key VARCHAR(255),
             reliability_score DECIMAL(3,2) DEFAULT 0.8,
             is_active BOOLEAN DEFAULT TRUE,
-            source_type ENUM('government', 'media', 'fact_checker', 'academic', 'other') DEFAULT 'other',
+            source_type TEXT DEFAULT 'other' CHECK (source_type IN ('government', 'media', 'fact_checker', 'academic', 'other')),
             country VARCHAR(50),
             language VARCHAR(10) DEFAULT 'en',
             created_at DATETIME DEFAULT CURRENT_TIMESTAMP
@@ -129,9 +149,9 @@ class Database {
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             reporter_id INTEGER,
             article_id INTEGER,
-            report_type ENUM('misinformation', 'spam', 'inappropriate', 'copyright', 'other') NOT NULL,
+            report_type TEXT NOT NULL CHECK (report_type IN ('misinformation', 'spam', 'inappropriate', 'copyright', 'other')),
             description TEXT,
-            status ENUM('pending', 'reviewed', 'resolved', 'dismissed') DEFAULT 'pending',
+            status TEXT DEFAULT 'pending' CHECK (status IN ('pending', 'reviewed', 'resolved', 'dismissed')),
             reviewed_by INTEGER,
             reviewed_at DATETIME,
             created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
@@ -164,7 +184,7 @@ class Database {
             user_id INTEGER NOT NULL,
             title VARCHAR(200) NOT NULL,
             message TEXT NOT NULL,
-            type ENUM('verification_complete', 'report_update', 'system', 'achievement') DEFAULT 'system',
+            type TEXT DEFAULT 'system' CHECK (type IN ('verification_complete', 'report_update', 'system', 'achievement')),
             is_read BOOLEAN DEFAULT FALSE,
             action_url VARCHAR(500),
             created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
@@ -309,4 +329,19 @@ class Database {
   }
 }
 
-module.exports = new Database();
+const database = new Database();
+
+// Initialize database connection
+const initializeDatabase = async () => {
+  try {
+    await database.connect();
+    await database.initializeTables();
+    console.log('✅ Database initialized successfully');
+    return database;
+  } catch (error) {
+    console.error('❌ Database initialization failed:', error);
+    throw error;
+  }
+};
+
+module.exports = { database, initializeDatabase };

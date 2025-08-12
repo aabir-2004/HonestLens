@@ -1,0 +1,8 @@
+User-agent: *
+Allow: /
+Allow: /api/health
+Disallow: /api/admin
+Disallow: /api/users
+Disallow: /data/
+
+Sitemap: https://honestlens.com/sitemap.xml

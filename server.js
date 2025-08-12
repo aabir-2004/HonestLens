@@ -3,17 +3,33 @@ const cors = require('cors');
 const helmet = require('helmet');
 const morgan = require('morgan');
 const rateLimit = require('express-rate-limit');
+const compression = require('compression');
 const path = require('path');
 require('dotenv').config();
 
 const { initializeDatabase } = require('./config/database');
+const cacheService = require('./middleware/cache');
 const { errorHandler } = require('./middleware/errorHandler');
 
 const app = express();
 const PORT = process.env.PORT || 5000;
 
 // Security middleware
-app.use(helmet());
+app.use(helmet({
+  contentSecurityPolicy: {
+    directives: {
+      defaultSrc: ["'self'"],
+      styleSrc: ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com", "https://cdnjs.cloudflare.com"],
+      fontSrc: ["'self'", "https://fonts.gstatic.com"],
+      scriptSrc: ["'self'"],
+      imgSrc: ["'self'", "data:", "https:"],
+      connectSrc: ["'self'", "https://api.openai.com", "https://newsapi.org", "https://factchecktools.googleapis.com"]
+    }
+  }
+}));
+
+// Compression middleware for better performance
+app.use(compression());
 
 // CORS configuration for deployment
 const allowedOrigins = [
@@ -38,13 +54,30 @@ app.use(cors({
   credentials: true
 }));
 
-// Rate limiting
-const limiter = rateLimit({
-  windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 100, // limit each IP to 100 requests per windowMs
-  message: 'Too many requests from this IP, please try again later.'
+// Rate limiting with different limits for different endpoints
+const createRateLimiter = (windowMs, max, message) => rateLimit({
+  windowMs,
+  max,
+  message: { error: message },
+  standardHeaders: true,
+  legacyHeaders: false,
 });
-app.use(limiter);
+
+// General rate limiting
+const generalLimiter = createRateLimiter(
+  15 * 60 * 1000, // 15 minutes
+  process.env.NODE_ENV === 'production' ? 200 : 1000,
+  'Too many requests from this IP, please try again later.'
+);
+
+// Strict rate limiting for verification endpoints
+const verificationLimiter = createRateLimiter(
+  5 * 60 * 1000, // 5 minutes
+  process.env.NODE_ENV === 'production' ? 20 : 100,
+  'Too many verification requests. Please wait before trying again.'
+);
+
+app.use(generalLimiter);
 
 // Body parsing middleware
 app.use(express.json({ limit: '10mb' }));
@@ -82,10 +115,18 @@ function safeLoadAndMount(routePath, apiPath, routeName) {
   }
 }
 
-// Load and mount routes safely
+// Apply caching to public endpoints BEFORE mounting routes (temporarily disabled for debugging)
+// app.use('/api/news', cacheService.middleware(300)); // 5 minutes cache
+// app.use('/api/health', cacheService.middleware(60)); // 1 minute cache
+
+// Load and mount routes safely with rate limiting
 safeLoadAndMount('./routes/auth', '/api/auth', 'authRoutes');
 safeLoadAndMount('./routes/news', '/api/news', 'newsRoutes');
+
+// Apply strict rate limiting to verification routes
+app.use('/api/verification', verificationLimiter);
 safeLoadAndMount('./routes/verification', '/api/verification', 'verificationRoutes');
+
 safeLoadAndMount('./routes/users', '/api/users', 'userRoutes');
 safeLoadAndMount('./routes/admin', '/api/admin', 'adminRoutes');
 
@@ -99,7 +140,7 @@ app.get('/api/health', (req, res) => {
 });
 
 // Serve frontend for all non-API routes
-app.get('*', (req, res) => {
+app.get('/*path', (req, res) => {
   // Only serve index.html for non-API routes
   if (!req.path.startsWith('/api/')) {
     res.sendFile(path.join(__dirname, 'public', 'index.html'));

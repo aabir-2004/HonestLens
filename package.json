@@ -4,13 +4,18 @@
   "description": "AI-powered news verification tool for India",
   "main": "server.js",
   "scripts": {
-    "start": "node server.js",
+    "start": "NODE_ENV=production node server.js",
+    "start:dev": "NODE_ENV=development nodemon server.js",
     "start:prod": "NODE_ENV=production node server.js",
-    "pm2": "pm2 start server.js --name honestlens --env production",
+    "pm2": "pm2 start ecosystem.config.js --env production",
     "dev": "nodemon server.js",
     "test": "jest",
     "lint": "eslint .",
-    "format": "prettier --write ."
+    "format": "prettier --write .",
+    "build": "echo \"No build step required for Node.js backend\"",
+    "postinstall": "echo \"Installation complete\"",
+    "health-check": "curl -f http://localhost:${PORT:-5000}/api/health || exit 1",
+    "test:prod": "NODE_ENV=test npm test"
   },
   "keywords": [
     "news",
@@ -46,7 +51,9 @@
     "node-cron": "^4.2.1",
     "openai": "^5.10.2",
     "puppeteer": "^24.15.0",
+    "redis": "^4.6.0",
     "rss-parser": "^3.13.0",
+    "compression": "^1.7.4",
     "sentiment": "^5.0.2",
     "sharp": "^0.34.3",
     "similarity": "^1.2.1",
@@ -63,7 +70,7 @@
     "supertest": "^6.3.3"
   },
   "engines": {
-    "node": ">=16.0.0",
+    "node": ">=18.0.0",
     "npm": ">=8.0.0"
   }
 }

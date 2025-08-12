@@ -1,0 +1,30 @@
+services:
+  - type: web
+    name: honestlens-api
+    env: node
+    plan: starter
+    buildCommand: npm install
+    startCommand: npm start
+    healthCheckPath: /api/health
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 5000
+      - key: JWT_SECRET
+        generateValue: true
+      - key: DATABASE_URL
+        value: ./data/honestlens.db
+      - key: FRONTEND_URL
+        value: https://your-frontend-domain.com
+      - key: TRUST_PROXY
+        value: true
+    disk:
+      name: honestlens-data
+      mountPath: /app/data
+      sizeGB: 1
+
+databases:
+  - name: honestlens-redis
+    plan: starter
+    type: redis
