@@ -11,6 +11,13 @@ class CacheService {
   }
 
   async init() {
+    // Skip Redis initialization on Render or when no REDIS_URL is provided
+    if (process.env.RENDER || (process.env.NODE_ENV === 'production' && !process.env.REDIS_URL)) {
+      console.log('🔄 Cache service using memory cache only (Render free tier)');
+      this.useRedis = false;
+      return;
+    }
+
     try {
       await redisService.connect();
       this.useRedis = redisService.isConnected;
