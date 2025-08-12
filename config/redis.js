@@ -7,6 +7,13 @@ class RedisService {
   }
 
   async connect() {
+    // Skip Redis entirely on Render free tier
+    if (process.env.RENDER || (process.env.NODE_ENV === 'production' && !process.env.REDIS_URL)) {
+      console.log('🔄 Skipping Redis on Render free tier - using memory cache only');
+      this.isConnected = false;
+      return null;
+    }
+
     try {
       // Use Redis URL if available (for production), otherwise local Redis
       const redisUrl = process.env.REDIS_URL || 'redis://localhost:6379';
@@ -18,13 +25,13 @@ class RedisService {
             console.log('Redis server connection refused.');
             return new Error('Redis server connection refused');
           }
-          if (options.total_retry_time > 1000 * 60 * 60) {
+          if (options.total_retry_time > 1000 * 10) { // Reduced retry time
             return new Error('Redis retry time exhausted');
           }
-          if (options.attempt > 10) {
+          if (options.attempt > 3) { // Reduced attempts
             return undefined;
           }
-          return Math.min(options.attempt * 100, 3000);
+          return Math.min(options.attempt * 100, 1000);
         }
       });
 
