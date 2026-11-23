@@ -153,93 +153,7 @@ router.get('/debunked', async (req, res) => {
   }
 });
 
-// Get single news article with verification details
-router.get('/:id', async (req, res) => {
-  try {
-    const { id } = req.params;
-
-    const article = await db.get(`
-      SELECT na.*, vres.truth_score, vres.credibility_level, vres.verification_method,
-             vres.sources_checked, vres.evidence, vres.reasoning, vres.confidence_score,
-             vres.flags, vres.verified_at, u.username as verified_by_username
-      FROM news_articles na
-      LEFT JOIN verification_requests vreq ON na.id = vreq.article_id
-      LEFT JOIN verification_results vres ON vreq.id = vres.request_id
-      LEFT JOIN users u ON vres.verified_by = u.id
-      WHERE na.id = ?
-    `, [id]);
-
-    if (!article) {
-      return res.status(404).json({
-        success: false,
-        message: 'Article not found'
-      });
-    }
-
-    // Get related articles
-    const relatedArticles = await db.query(`
-      SELECT na.id, na.title, na.source, na.published_date,
-             vres.truth_score, vres.credibility_level
-      FROM news_articles na
-      LEFT JOIN verification_requests vreq ON na.id = vreq.article_id
-      LEFT JOIN verification_results vres ON vreq.id = vres.request_id
-      WHERE na.id != ? AND (na.category = ? OR na.source = ?)
-      ORDER BY na.published_date DESC
-      LIMIT 5
-    `, [id, article.category, article.source]);
-
-    res.json({
-      success: true,
-      data: {
-        article: {
-          id: article.id,
-          title: article.title,
-          content: article.content,
-          summary: article.summary,
-          url: article.url,
-          source: article.source,
-          author: article.author,
-          publishedDate: article.published_date,
-          category: article.category,
-          language: article.language,
-          imageUrl: article.image_url,
-          keywords: article.keywords ? article.keywords.split(',') : [],
-          verification: article.truth_score ? {
-            truthScore: article.truth_score,
-            credibilityLevel: article.credibility_level,
-            verificationMethod: article.verification_method,
-            sourcesChecked: article.sources_checked ? JSON.parse(article.sources_checked) : [],
-            evidence: article.evidence,
-            reasoning: article.reasoning,
-            confidenceScore: article.confidence_score,
-            flags: article.flags ? JSON.parse(article.flags) : [],
-            verifiedAt: article.verified_at,
-            verifiedBy: article.verified_by_username
-          } : null
-        },
-        relatedArticles: relatedArticles.map(rel => ({
-          id: rel.id,
-          title: rel.title,
-          source: rel.source,
-          publishedDate: rel.published_date,
-          verification: rel.truth_score ? {
-            truthScore: rel.truth_score,
-            credibilityLevel: rel.credibility_level
-          } : null
-        }))
-      }
-    });
-
-  } catch (error) {
-    console.error('Get article error:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Internal server error'
-    });
-  }
-});
-
-// Search news articles
+// Search news articles - MOVED BEFORE /:id route
 router.get('/search', async (req, res) => {
   try {
     const { q, page = 1, limit = 20, category, credibility, dateFrom, dateTo } = req.query;
@@ -326,75 +240,6 @@ router.get('/search', async (req, res) => {
 
   } catch (error) {
     console.error('Search articles error:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Internal server error'
-    });
-  }
-});
-
-// Report news article
-router.post('/:id/report', authMiddleware, [
-  body('reportType').isIn(['misinformation', 'spam', 'inappropriate', 'copyright', 'other']),
-  body('description').optional().isLength({ max: 1000 }).trim()
-], async (req, res) => {
-  try {
-    const errors = validationResult(req);
-    if (!errors.isEmpty()) {
-      return res.status(400).json({
-        success: false,
-        message: 'Validation failed',
-        errors: errors.array()
-      });
-    }
-
-    const { id } = req.params;
-    const { reportType, description } = req.body;
-
-    // Check if article exists
-    const article = await db.get('SELECT id FROM news_articles WHERE id = ?', [id]);
-    if (!article) {
-      return res.status(404).json({
-        success: false,
-        message: 'Article not found'
-      });
-    }
-
-    // Check if user already reported this article
-    const existingReport = await db.get(`
-      SELECT id FROM user_reports 
-      WHERE reporter_id = ? AND article_id = ? AND status != 'dismissed'
-    `, [req.user.userId, id]);
-
-    if (existingReport) {
-      return res.status(409).json({
-        success: false,
-        message: 'You have already reported this article'
-      });
-    }
-
-    // Create report
-    const result = await db.run(`
-      INSERT INTO user_reports (reporter_id, article_id, report_type, description)
-      VALUES (?, ?, ?, ?)
-    `, [req.user.userId, id, reportType, description]);
-
-    // Log user activity
-    await db.run(`
-      INSERT INTO user_activity_logs (user_id, action, resource_type, resource_id, details, ip_address, user_agent)
-      VALUES (?, 'report_article', 'article', ?, ?, ?, ?)
-    `, [req.user.userId, id, JSON.stringify({ reportType, description }), req.ip, req.get('User-Agent')]);
-
-    res.status(201).json({
-      success: true,
-      message: 'Report submitted successfully',
-      data: {
-        reportId: result.id
-      }
-    });
-
-  } catch (error) {
-    console.error('Report article error:', error);
     res.status(500).json({
       success: false,
       message: 'Internal server error'
@@ -490,6 +335,161 @@ router.get('/live', async (req, res) => {
   } catch (error) {
     console.error('Live news fetch error:', error);
     res.status(500).json({ success: false, message: 'Failed to fetch live news', error: error.message });
+  }
+});
+
+// Get single news article with verification details - MOVED AFTER specific routes
+router.get('/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const article = await db.get(`
+      SELECT na.*, vres.truth_score, vres.credibility_level, vres.verification_method,
+             vres.sources_checked, vres.evidence, vres.reasoning, vres.confidence_score,
+             vres.flags, vres.verified_at, u.username as verified_by_username
+      FROM news_articles na
+      LEFT JOIN verification_requests vreq ON na.id = vreq.article_id
+      LEFT JOIN verification_results vres ON vreq.id = vres.request_id
+      LEFT JOIN users u ON vres.verified_by = u.id
+      WHERE na.id = ?
+    `, [id]);
+
+    if (!article) {
+      return res.status(404).json({
+        success: false,
+        message: 'Article not found'
+      });
+    }
+
+    // Get related articles
+    const relatedArticles = await db.query(`
+      SELECT na.id, na.title, na.source, na.published_date,
+             vres.truth_score, vres.credibility_level
+      FROM news_articles na
+      LEFT JOIN verification_requests vreq ON na.id = vreq.article_id
+      LEFT JOIN verification_results vres ON vreq.id = vres.request_id
+      WHERE na.id != ? AND (na.category = ? OR na.source = ?)
+      ORDER BY na.published_date DESC
+      LIMIT 5
+    `, [id, article.category, article.source]);
+
+    res.json({
+      success: true,
+      data: {
+        article: {
+          id: article.id,
+          title: article.title,
+          content: article.content,
+          summary: article.summary,
+          url: article.url,
+          source: article.source,
+          author: article.author,
+          publishedDate: article.published_date,
+          category: article.category,
+          language: article.language,
+          imageUrl: article.image_url,
+          keywords: article.keywords ? article.keywords.split(',') : [],
+          verification: article.truth_score ? {
+            truthScore: article.truth_score,
+            credibilityLevel: article.credibility_level,
+            verificationMethod: article.verification_method,
+            sourcesChecked: article.sources_checked ? JSON.parse(article.sources_checked) : [],
+            evidence: article.evidence,
+            reasoning: article.reasoning,
+            confidenceScore: article.confidence_score,
+            flags: article.flags ? JSON.parse(article.flags) : [],
+            verifiedAt: article.verified_at,
+            verifiedBy: article.verified_by_username
+          } : null
+        },
+        relatedArticles: relatedArticles.map(rel => ({
+          id: rel.id,
+          title: rel.title,
+          source: rel.source,
+          publishedDate: rel.published_date,
+          verification: rel.truth_score ? {
+            truthScore: rel.truth_score,
+            credibilityLevel: rel.credibility_level
+          } : null
+        }))
+      }
+    });
+
+  } catch (error) {
+    console.error('Get article error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Internal server error'
+    });
+  }
+});
+
+// Report news article - MOVED AFTER /:id route to avoid conflicts
+router.post('/:id/report', authMiddleware, [
+  body('reportType').isIn(['misinformation', 'spam', 'inappropriate', 'copyright', 'other']),
+  body('description').optional().isLength({ max: 1000 }).trim()
+], async (req, res) => {
+  try {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({
+        success: false,
+        message: 'Validation failed',
+        errors: errors.array()
+      });
+    }
+
+    const { id } = req.params;
+    const { reportType, description } = req.body;
+
+    // Check if article exists
+    const article = await db.get('SELECT id FROM news_articles WHERE id = ?', [id]);
+    if (!article) {
+      return res.status(404).json({
+        success: false,
+        message: 'Article not found'
+      });
+    }
+
+    // Check if user already reported this article
+    const existingReport = await db.get(`
+      SELECT id FROM user_reports 
+      WHERE reporter_id = ? AND article_id = ? AND status != 'dismissed'
+    `, [req.user.userId, id]);
+
+    if (existingReport) {
+      return res.status(409).json({
+        success: false,
+        message: 'You have already reported this article'
+      });
+    }
+
+    // Create report
+    const result = await db.run(`
+      INSERT INTO user_reports (reporter_id, article_id, report_type, description)
+      VALUES (?, ?, ?, ?)
+    `, [req.user.userId, id, reportType, description]);
+
+    // Log user activity
+    await db.run(`
+      INSERT INTO user_activity_logs (user_id, action, resource_type, resource_id, details, ip_address, user_agent)
+      VALUES (?, 'report_article', 'article', ?, ?, ?, ?)
+    `, [req.user.userId, id, JSON.stringify({ reportType, description }), req.ip, req.get('User-Agent')]);
+
+    res.status(201).json({
+      success: true,
+      message: 'Report submitted successfully',
+      data: {
+        reportId: result.id
+      }
+    });
+
+  } catch (error) {
+    console.error('Report article error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Internal server error'
+    });
   }
 });
 

@@ -6,11 +6,13 @@
   "scripts": {
     "start": "node server.js",
     "start:prod": "NODE_ENV=production node server.js",
+    "build": "echo 'Build completed successfully'",
     "pm2": "pm2 start server.js --name honestlens --env production",
     "dev": "nodemon server.js",
     "test": "jest",
     "lint": "eslint .",
-    "format": "prettier --write ."
+    "format": "prettier --write .",
+    "postinstall": "echo 'Dependencies installed successfully'"
   },
   "keywords": [
     "news",
@@ -48,12 +50,14 @@
     "puppeteer": "^24.15.0",
     "rss-parser": "^3.13.0",
     "sentiment": "^5.0.2",
+    "serverless-http": "^3.2.0",
     "sharp": "^0.34.3",
     "similarity": "^1.2.1",
     "sqlite3": "^5.1.7",
     "string-similarity": "^4.0.4",
     "tesseract.js": "^6.0.1",
-    "tf-idf": "^1.0.0"
+    "tf-idf": "^1.0.0",
+    "uuid": "^9.0.0"
   },
   "devDependencies": {
     "eslint": "^8.55.0",
